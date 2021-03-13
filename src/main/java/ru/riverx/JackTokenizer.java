@@ -35,6 +35,8 @@ public class JackTokenizer {
         return tmp;
     }
 
+    public static String getSymbols() { return SYMBOLS; }
+
     public boolean hasNextToken() {
         return tokenCount < tokenLength;
     }
@@ -42,6 +44,8 @@ public class JackTokenizer {
     public Token getNextToken() {
         return tokenList.get(tokenCount++);
     }
+
+    public Token getSecondNextToken() { return tokenList.get(tokenCount); }
 
     private List<Token> tokenize() {
         List<Token> tokenList = new ArrayList<>();
@@ -58,7 +62,7 @@ public class JackTokenizer {
                 tokenList.add(tokenizeString()); continue;
             }
             if ('/' == current && isComment()) {
-                ignoreSpecialComments(current); continue;
+                ignoreSpecialComments(); continue;
             }
             tokenList.add(tokenizeSymbol(current));
         }
@@ -118,20 +122,26 @@ public class JackTokenizer {
     }
 
     private boolean isComment() {
+        boolean isComment = false;
         if (hasNext()) {
             char next = getNext();
             if ('/' == next || '*' == next) {
-                return true;
+                isComment = true;
             }
-            if (!Character.isSpaceChar(next)) {
+            if (!Character.isSpaceChar(next) && !isComment) {
                 throw new RuntimeException("Unexpected symbol: " + next);
             }
             symbolCount--; // Undo counter to the first char
+            return isComment;
         }
         return false;
     }
 
-    private void ignoreSpecialComments(char current) {
+    private void ignoreSpecialComments() {
+        char current = ' ';
+        if (hasNext()) {
+            current = getNext();
+        }
         switch (current) {
             case '/': {
                 if (hasNext()) {

@@ -28,7 +28,9 @@ public class JackAnalyzer {
     private static void compileFile(String filename) {
         String file = readFile(filename);
         JackTokenizer tokenizer = new JackTokenizer(file);
-        writeTokensToFile(filename, tokenizer.getTokenListAsStringList());
+        CompilationEngine engine = new CompilationEngine(tokenizer);
+        writeTokensToFile(filename, engine.getTokensXml());
+        //writeTokensToFile(filename, tokenizer.getTokenListAsStringList());
     }
 
     private static void compileFolder(String folderName) {

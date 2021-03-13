@@ -11,6 +11,7 @@ public class Token {
 
     public String getValue() { return value; }
     public TokenType getType() { return type; }
+    public String toString() { return String.format("[%s][%s]", type, value); }
     public String toXmlString() {
         return String.format("<%s> %s </%s>",type, value, type);
     }
