@@ -41,17 +41,26 @@ public class CompilationEngine {
     }
 
     private void compileClassVarDec() {
-        List<Token> tokenList = new ArrayList<>();
-        tokenList.add(new Token("static", TokenType.keyword));
-        tokenList.add(new Token("field", TokenType.keyword));
-        if (checkTokenList(tokenList, false)) {
-            tokensXml.add("<classVarDec>");
+        if (compileSpecialVarDec()) {
             compileType();
             compileVarName();
             checkToken(TokenType.symbol, ";");
             tokensXml.add("</classVarDec>");
             compileClassVarDec(); // For additional class var declarations
         }
+    }
+
+    private boolean compileSpecialVarDec() {
+        if (isGivenToken(TokenType.keyword, "static")) {
+            tokensXml.add("<classVarDec>");
+            checkToken(TokenType.keyword, "static");
+            return true;
+        } else if (isGivenToken(TokenType.keyword, "field")) {
+            tokensXml.add("<classVarDec>");
+            checkToken(TokenType.keyword, "field");
+            return true;
+        }
+        return false;
     }
 
     private void compileType() {
@@ -100,13 +109,8 @@ public class CompilationEngine {
     }
 
     private void compileSubroutineDec() {
-        List<Token> tokenList = new ArrayList<>();
-        tokenList.add(new Token("constructor", TokenType.keyword));
-        tokenList.add(new Token("function", TokenType.keyword));
-        tokenList.add(new Token("method", TokenType.keyword));
-        if (checkTokenList(tokenList, false)) {
-            tokensXml.add("<subroutineDec>");
-            tokenList.clear();
+        if (compileSpecialSubroutineDec()) {
+            ArrayList<Token> tokenList = new ArrayList<>();
             tokenList.add(new Token("void", TokenType.keyword));
             if (!checkTokenList(tokenList, false)) {
                 compileType();
@@ -119,6 +123,23 @@ public class CompilationEngine {
             tokensXml.add("</subroutineDec>");
             compileSubroutineDec();
         }
+    }
+
+    private boolean compileSpecialSubroutineDec() {
+        if (isGivenToken(TokenType.keyword, "constructor")) {
+            tokensXml.add("<subroutineDec>");
+            checkToken(TokenType.keyword, "constructor");
+            return true;
+        } else if (isGivenToken(TokenType.keyword, "function")) {
+            tokensXml.add("<subroutineDec>");
+            checkToken(TokenType.keyword, "function");
+            return true;
+        } else if (isGivenToken(TokenType.keyword, "method")) {
+            tokensXml.add("<subroutineDec>");
+            checkToken(TokenType.keyword, "method");
+            return true;
+        }
+        return false;
     }
 
     private void compileSubroutineName() {
