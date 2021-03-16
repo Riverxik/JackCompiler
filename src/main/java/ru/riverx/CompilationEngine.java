@@ -7,10 +7,17 @@ public class CompilationEngine {
     private final JackTokenizer tokenizer;
     private final List<String> tokensXml;
     private Token currentToken;
+    private SymbolTable symbolTable;
+    private VMWriter writer;
+    private String className;
+    private int paramListIndex;
+    private int labelCount;
 
     public CompilationEngine(JackTokenizer tokenizer) {
         this.tokenizer = tokenizer;
         this.tokensXml = new ArrayList<>();
+        this.writer = new VMWriter();
+        this.labelCount = 0;
         parse();
     }
 
@@ -20,6 +27,7 @@ public class CompilationEngine {
         while (tokenizer.hasNextToken()) {
             currentToken = tokenizer.getNextToken();
             if (isGivenToken(TokenType.keyword, "class")) {
+                symbolTable = new SymbolTable();
                 compileClass();
             }
         }
@@ -33,19 +41,25 @@ public class CompilationEngine {
         compileClassVarDec();
         compileSubroutineDec();
         checkToken(TokenType.symbol, "}");
+        symbolTable.resetKindCountClass();
         tokensXml.add("</class>");
     }
 
     private void compileClassName() {
+        className = currentToken.getValue();
         checkIdentifier();
     }
 
     private void compileClassVarDec() {
+        String kind = currentToken.getValue();
         if (compileSpecialVarDec()) {
+            String type = currentToken.getValue();
             compileType();
+            String name = currentToken.getValue();
             compileVarName();
             checkToken(TokenType.symbol, ";");
             tokensXml.add("</classVarDec>");
+            symbolTable.defineClass(name, type, kind);
             compileClassVarDec(); // For additional class var declarations
         }
     }
@@ -89,8 +103,11 @@ public class CompilationEngine {
     }
 
     private void compileTypeVarName() {
+        String type = currentToken.getValue();
         compileType();
+        String name = currentToken.getValue();
         checkIdentifier();
+        symbolTable.defineSubroutine(name, type, "arg");
         compileAddTypeVarName();
     }
 
@@ -121,6 +138,7 @@ public class CompilationEngine {
             checkToken(TokenType.symbol, ")");
             compileSubroutineBody();
             tokensXml.add("</subroutineDec>");
+            symbolTable.resetKindCountSubroutine();
             compileSubroutineDec();
         }
     }
@@ -137,6 +155,7 @@ public class CompilationEngine {
         } else if (isGivenToken(TokenType.keyword, "method")) {
             tokensXml.add("<subroutineDec>");
             checkToken(TokenType.keyword, "method");
+            symbolTable.defineSubroutine("this", className, "arg");
             return true;
         }
         return false;
@@ -169,10 +188,13 @@ public class CompilationEngine {
         if (isGivenToken(TokenType.keyword, "var")) {
             tokensXml.add("<varDec>");
             checkToken(TokenType.keyword, "var");
+            String type = currentToken.getValue();
             compileType();
+            String name = currentToken.getValue();
             compileVarName();
             checkToken(TokenType.symbol, ";");
             tokensXml.add("</varDec>");
+            symbolTable.defineSubroutine(name, type, "var");
             compileVarDec();
         }
     }
@@ -212,6 +234,8 @@ public class CompilationEngine {
     private void compileLetStatement() {
         tokensXml.add("<letStatement>");
         checkToken(TokenType.keyword, "let");
+        String name = currentToken.getValue();
+        Variable var = symbolTable.findVariable(name);
         checkIdentifier();              //compileVarName() but without checking next.
         if (isGivenToken(TokenType.symbol, "[")) {
             compileArrayExpression();
@@ -220,6 +244,7 @@ public class CompilationEngine {
         tokensXml.add("<expression>");
         compileExpression();
         tokensXml.add("</expression>");
+        writer.writePop(var.getKind(), var.getIndex());
         checkToken(TokenType.symbol, ";");
         tokensXml.add("</letStatement>");
     }
@@ -236,11 +261,17 @@ public class CompilationEngine {
         tokensXml.add("<ifStatement>");
         checkToken(TokenType.keyword, "if");
         compileBracketExpression();
+        writer.writeArithmetic(ArithmeticCommand.NOT);
+        writer.writeIf("if_L1_"+labelCount);
         compileBlockStatements();
+        writer.writeGoto("goto_L2_"+labelCount);
+        writer.writeLabel("if_L1_"+labelCount);
         if (isGivenToken(TokenType.keyword, "else")) {
             checkToken(TokenType.keyword, "else");
             compileBlockStatements();
         }
+        writer.writeLabel("goto_L2_"+labelCount);
+        labelCount++;
         tokensXml.add("</ifStatement>");
     }
 
@@ -264,14 +295,21 @@ public class CompilationEngine {
         tokensXml.add("<whileStatement>");
         checkToken(TokenType.keyword, "while");
         checkToken(TokenType.symbol, "(");
+        writer.writeLabel("while_L1_"+labelCount);
         tokensXml.add("<expression>");
         compileExpression();
         tokensXml.add("</expression>");
         checkToken(TokenType.symbol, ")");
+        writer.writeArithmetic(ArithmeticCommand.NOT);
+        writer.writeIf("while_L2_"+labelCount);
         compileBlockStatements();
+        writer.writeGoto("while_L1_"+labelCount);
+        writer.writeLabel("while_L2_"+labelCount);
+        labelCount++;
         tokensXml.add("</whileStatement>");
     }
 
+    // TODO: do, return, constructor, method, function
     private void compileDoStatement() {
         tokensXml.add("<doStatement>");
         checkToken(TokenType.keyword, "do");
@@ -302,14 +340,18 @@ public class CompilationEngine {
     }
 
     private void compileOpTerm() {
-        compileOp();
+        compileOp(false);
         compileExpression();
     }
 
     private void compileTerm() {
         tokensXml.add("<term>");
         switch (currentToken.getType()) {
-            case integerConstant: checkToken(TokenType.integerConstant, currentToken.getValue()); break;
+            case integerConstant: {
+                String numStr = currentToken.getValue();
+                checkToken(TokenType.integerConstant, numStr);
+                writer.writeConstant(numStr);
+            } break;
             case stringConstant: checkToken(TokenType.stringConstant, currentToken.getValue()); break;
             case keyword: compileKeyWordConstant(); break;
             case identifier: compileIdentifier(); break;
@@ -324,35 +366,46 @@ public class CompilationEngine {
     }
 
     private void compileIdentifier() {
+        String name = currentToken.getValue();
+        Variable var = symbolTable.findVariable(name);
         checkIdentifier();
         if (isGivenToken(TokenType.symbol, "[")) {
             compileArrayExpression();
-        }
-        if (isGivenToken(TokenType.symbol, "(")) {
+        } else if (isGivenToken(TokenType.symbol, "(")) {
             compileSubroutineCall();
-        }
-        if (isGivenToken(TokenType.symbol, ".")) {
+        } else if (isGivenToken(TokenType.symbol, ".")) {
             checkToken(TokenType.symbol, ".");
             compileSubroutineCall();
+        } else {
+            writer.writePush(var.getKind(), var.getIndex());
         }
     }
 
     private void compileSubroutineCall() {
+        boolean isCall = false;
+        String name = "identifier";
         checkIdentifier(); // compileSubroutineName();
         if (isGivenToken(TokenType.symbol, ".")) {
             checkToken(TokenType.symbol, ".");
+            name = currentToken.getValue();
             checkIdentifier();
+            this.paramListIndex = 0;
+            isCall = true;
         }
         checkToken(TokenType.symbol, "(");
         tokensXml.add("<expressionList>");
         compileExpressionList();
         tokensXml.add("</expressionList>");
         checkToken(TokenType.symbol, ")");
+        if (isCall) {
+            writer.writeCall(name, paramListIndex);
+        }
     }
 
     private void compileExpressionList() {
         if (isGivenToken(TokenType.symbol, ")")) return;
         if (tryCompileExpression()) {
+            paramListIndex++;
             if (isGivenToken(TokenType.symbol, ",")) {
                 checkToken(TokenType.symbol, ",");
                 compileExpressionList();
@@ -389,7 +442,7 @@ public class CompilationEngine {
     }
 
     private void compileUnaryTerm() {
-        compileOp();
+        compileOp(true);
         compileTerm();
     }
 
@@ -407,13 +460,36 @@ public class CompilationEngine {
         return false;
     }
 
-    private void compileOp() {
+    private void compileOp(boolean isUnary) {
         final String symbols = JackTokenizer.getSymbols();
         int index = symbols.indexOf(currentToken.getValue());
         if (currentToken.getType() == TokenType.symbol && index != -1) {
             checkToken(TokenType.symbol, String.valueOf(symbols.charAt(index)));
+            writeOp(symbols.charAt(index), isUnary);
         } else {
             checkToken(TokenType.symbol, symbols);
+        }
+    }
+
+    private void writeOp(char op, boolean isUnary) {
+        switch (op) {
+            case '+': writer.writeArithmetic(ArithmeticCommand.ADD); break;
+            case '-': {
+                if (isUnary) {
+                    writer.writeArithmetic(ArithmeticCommand.NEG);
+                } else {
+                    writer.writeArithmetic(ArithmeticCommand.SUB);
+                }
+            } break;
+            case '*': writer.writeArithmetic(ArithmeticCommand.MULTIPLY); break;
+            case '/': writer.writeArithmetic(ArithmeticCommand.DIVIDE); break;
+            case '=': writer.writeArithmetic(ArithmeticCommand.EQ); break;
+            case '<': writer.writeArithmetic(ArithmeticCommand.LT); break;
+            case '>': writer.writeArithmetic(ArithmeticCommand.GT); break;
+            case '&': writer.writeArithmetic(ArithmeticCommand.AND); break;
+            case '|': writer.writeArithmetic(ArithmeticCommand.OR); break;
+            case '~': writer.writeArithmetic(ArithmeticCommand.NOT); break;
+            default: throw new IllegalArgumentException("Not implemented op: " + op);
         }
     }
 
