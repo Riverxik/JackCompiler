@@ -29,8 +29,8 @@ public class JackAnalyzer {
         String file = readFile(filename);
         JackTokenizer tokenizer = new JackTokenizer(file);
         CompilationEngine engine = new CompilationEngine(tokenizer);
-        writeTokensToFile(filename, engine.getTokensXml());
-        //writeTokensToFile(filename, tokenizer.getTokenListAsStringList());
+        writeTokensToFile(filename, ".xml", engine.getTokensXml());
+        writeTokensToFile(filename, ".vm", engine.getGeneratedVMCode());
     }
 
     private static void compileFolder(String folderName) {
@@ -72,10 +72,10 @@ public class JackAnalyzer {
         return buffer.toString();
     }
 
-    private static void writeTokensToFile(String filename, List<String> tokenList) {
+    private static void writeTokensToFile(String filename, String ext, List<String> tokenList) {
         try {
             String name = filename.substring(0, filename.indexOf("."));
-            Files.write(Paths.get(name + ".xml"), tokenList, StandardOpenOption.CREATE);
+            Files.write(Paths.get(name + ext), tokenList, StandardOpenOption.CREATE);
         } catch (IOException e) {
             e.printStackTrace();
         }

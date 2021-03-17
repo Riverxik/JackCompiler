@@ -12,16 +12,21 @@ public class CompilationEngine {
     private String className;
     private int paramListIndex;
     private int labelCount;
+    private String anotherClass;
+    private List<String> identifiers;
 
     public CompilationEngine(JackTokenizer tokenizer) {
         this.tokenizer = tokenizer;
         this.tokensXml = new ArrayList<>();
         this.writer = new VMWriter();
         this.labelCount = 0;
+        this.identifiers = new ArrayList<>();
         parse();
     }
 
     public List<String> getTokensXml() { return tokensXml; }
+
+    public List<String> getGeneratedVMCode() { return writer.vmCode; }
 
     private void parse() {
         while (tokenizer.hasNextToken()) {
@@ -36,6 +41,7 @@ public class CompilationEngine {
     private void compileClass() {
         tokensXml.add("<class>");
         checkToken(TokenType.keyword, "class");
+        className = currentToken.getValue();
         compileClassName();
         checkToken(TokenType.symbol, "{");
         compileClassVarDec();
@@ -46,7 +52,9 @@ public class CompilationEngine {
     }
 
     private void compileClassName() {
-        className = currentToken.getValue();
+        if (!Character.isUpperCase(className.charAt(0))) {
+            throw new IllegalArgumentException("Class name should starts with the capital letter: " + className);
+        }
         checkIdentifier();
     }
 
@@ -55,11 +63,14 @@ public class CompilationEngine {
         if (compileSpecialVarDec()) {
             String type = currentToken.getValue();
             compileType();
-            String name = currentToken.getValue();
+            //String name = currentToken.getValue();
             compileVarName();
             checkToken(TokenType.symbol, ";");
             tokensXml.add("</classVarDec>");
-            symbolTable.defineClass(name, type, kind);
+            for (String identifier : identifiers) {
+                symbolTable.defineClass(identifier, type, kind);
+            }
+            identifiers.clear();
             compileClassVarDec(); // For additional class var declarations
         }
     }
@@ -98,6 +109,7 @@ public class CompilationEngine {
     }
 
     private void compileVarName() {
+        identifiers.add(currentToken.getValue());
         checkIdentifier();
         compileAddVarName();
     }
@@ -126,39 +138,42 @@ public class CompilationEngine {
     }
 
     private void compileSubroutineDec() {
-        if (compileSpecialSubroutineDec()) {
+        int subIndex = compileSpecialSubroutineDec();
+        if (subIndex >= 0) {
             ArrayList<Token> tokenList = new ArrayList<>();
             tokenList.add(new Token("void", TokenType.keyword));
             if (!checkTokenList(tokenList, false)) {
                 compileType();
             }
+            String funcName = currentToken.getValue();
             compileSubroutineName();
             checkToken(TokenType.symbol, "(");
             compileParameterList();
             checkToken(TokenType.symbol, ")");
-            compileSubroutineBody();
+
+            compileSubroutineBody(funcName, subIndex);
             tokensXml.add("</subroutineDec>");
             symbolTable.resetKindCountSubroutine();
             compileSubroutineDec();
         }
     }
 
-    private boolean compileSpecialSubroutineDec() {
+    private int compileSpecialSubroutineDec() {
         if (isGivenToken(TokenType.keyword, "constructor")) {
             tokensXml.add("<subroutineDec>");
             checkToken(TokenType.keyword, "constructor");
-            return true;
+            return 0;
         } else if (isGivenToken(TokenType.keyword, "function")) {
             tokensXml.add("<subroutineDec>");
             checkToken(TokenType.keyword, "function");
-            return true;
+            return 1;
         } else if (isGivenToken(TokenType.keyword, "method")) {
             tokensXml.add("<subroutineDec>");
             checkToken(TokenType.keyword, "method");
             symbolTable.defineSubroutine("this", className, "arg");
-            return true;
+            return 2;
         }
-        return false;
+        return -1;
     }
 
     private void compileSubroutineName() {
@@ -173,10 +188,19 @@ public class CompilationEngine {
         tokensXml.add("</parameterList>");
     }
 
-    private void compileSubroutineBody() {
+    private void compileSubroutineBody(String funcName, int subIndex) {
         tokensXml.add("<subroutineBody>");
         checkToken(TokenType.symbol, "{");
         compileVarDec();
+        writer.writeFunction(className+"."+funcName, Variable.localCount);
+        if (subIndex == 0) { // This is constructor.
+            writer.writePush(SymbolKind.constant, Variable.fieldCount);  // how much memory for instance
+            writer.writeCall("Memory.alloc", 1);             // allocate new memory
+            writer.writePop(SymbolKind.pointer, 0);                // anchor base address to this
+        } else if (subIndex == 2) { // This is method.
+            writer.writePush(SymbolKind.ARG, 0);                   // get base address from arg0
+            writer.writePop(SymbolKind.pointer, 0);                // anchor it to this
+        }
         tokensXml.add("<statements>");
         compileStatements();
         tokensXml.add("</statements>");
@@ -190,11 +214,14 @@ public class CompilationEngine {
             checkToken(TokenType.keyword, "var");
             String type = currentToken.getValue();
             compileType();
-            String name = currentToken.getValue();
+            //String name = currentToken.getValue();
             compileVarName();
             checkToken(TokenType.symbol, ";");
             tokensXml.add("</varDec>");
-            symbolTable.defineSubroutine(name, type, "var");
+            for (String identifier : identifiers) {
+                symbolTable.defineSubroutine(identifier, type, "var");
+            }
+            identifiers.clear();
             compileVarDec();
         }
     }
@@ -236,10 +263,8 @@ public class CompilationEngine {
         checkToken(TokenType.keyword, "let");
         String name = currentToken.getValue();
         Variable var = symbolTable.findVariable(name);
-        checkIdentifier();              //compileVarName() but without checking next.
-        if (isGivenToken(TokenType.symbol, "[")) {
-            compileArrayExpression();
-        }
+        //compileIdentifier();
+        checkIdentifier();
         checkToken(TokenType.symbol, "=");
         tokensXml.add("<expression>");
         compileExpression();
@@ -258,20 +283,20 @@ public class CompilationEngine {
     }
 
     private void compileIfStatement() {
+        int count = labelCount++;
         tokensXml.add("<ifStatement>");
         checkToken(TokenType.keyword, "if");
         compileBracketExpression();
         writer.writeArithmetic(ArithmeticCommand.NOT);
-        writer.writeIf("if_L1_"+labelCount);
+        writer.writeIf("if_L1_"+count);
         compileBlockStatements();
-        writer.writeGoto("goto_L2_"+labelCount);
-        writer.writeLabel("if_L1_"+labelCount);
+        writer.writeGoto("goto_L2_"+count);
+        writer.writeLabel("if_L1_"+count);
         if (isGivenToken(TokenType.keyword, "else")) {
             checkToken(TokenType.keyword, "else");
             compileBlockStatements();
         }
-        writer.writeLabel("goto_L2_"+labelCount);
-        labelCount++;
+        writer.writeLabel("goto_L2_"+count);
         tokensXml.add("</ifStatement>");
     }
 
@@ -292,28 +317,28 @@ public class CompilationEngine {
     }
 
     private void compileWhileStatement() {
+        int count = labelCount++;
         tokensXml.add("<whileStatement>");
         checkToken(TokenType.keyword, "while");
         checkToken(TokenType.symbol, "(");
-        writer.writeLabel("while_L1_"+labelCount);
+        writer.writeLabel("while_L1_"+count);
         tokensXml.add("<expression>");
         compileExpression();
         tokensXml.add("</expression>");
         checkToken(TokenType.symbol, ")");
         writer.writeArithmetic(ArithmeticCommand.NOT);
-        writer.writeIf("while_L2_"+labelCount);
+        writer.writeIf("while_L2_"+count);
         compileBlockStatements();
-        writer.writeGoto("while_L1_"+labelCount);
-        writer.writeLabel("while_L2_"+labelCount);
-        labelCount++;
+        writer.writeGoto("while_L1_"+count);
+        writer.writeLabel("while_L2_"+count);
         tokensXml.add("</whileStatement>");
     }
 
-    // TODO: do, return, constructor, method, function
     private void compileDoStatement() {
         tokensXml.add("<doStatement>");
         checkToken(TokenType.keyword, "do");
-        compileSubroutineCall();
+        compileIdentifier();
+        writer.writePop(SymbolKind.temp, 0); // We don't need to store result in 'do', so clear the stack.
         checkToken(TokenType.symbol, ";");
         tokensXml.add("</doStatement>");
     }
@@ -324,7 +349,9 @@ public class CompilationEngine {
         if (!tryCompileExpression()) {
             tokensXml.remove(tokensXml.size() - 1);
             tokensXml.remove(tokensXml.size() - 1);
+            writer.writePush(SymbolKind.constant, 0); // if empty return we generate push 0 for it.
         }
+        writer.writeReturn();
         checkToken(TokenType.symbol, ";");
         tokensXml.add("</returnStatement>");
     }
@@ -340,8 +367,15 @@ public class CompilationEngine {
     }
 
     private void compileOpTerm() {
-        compileOp(false);
+        // Get the op.
+        final String symbols = JackTokenizer.getSymbols();
+        int index = symbols.indexOf(currentToken.getValue());
+        // Compile op.
+        compileOp();
+        // Compile next exp.
         compileExpression();
+        // Write op after second expression.
+        writeOp(symbols.charAt(index), false);
     }
 
     private void compileTerm() {
@@ -367,24 +401,45 @@ public class CompilationEngine {
 
     private void compileIdentifier() {
         String name = currentToken.getValue();
-        Variable var = symbolTable.findVariable(name);
+        Variable var;
+        try {
+            var = symbolTable.findVariable(name);
+        } catch (RuntimeException e) {
+            // That means that we encounter an another class identifier, so we didn't have it in symbol-table.
+            var = null;
+            anotherClass = currentToken.getValue();
+        }
         checkIdentifier();
-        if (isGivenToken(TokenType.symbol, "[")) {
-            compileArrayExpression();
-        } else if (isGivenToken(TokenType.symbol, "(")) {
-            compileSubroutineCall();
-        } else if (isGivenToken(TokenType.symbol, ".")) {
-            checkToken(TokenType.symbol, ".");
-            compileSubroutineCall();
+        if (isGivenToken(TokenType.symbol, "[")) {        // arr'['exp] = exp2;
+            writer.writePush(var.getKind(), var.getIndex());    // push arr
+            compileArrayExpression();                           // [exp]
+            writer.writeArithmetic(ArithmeticCommand.ADD);      // arr + [exp]
+            checkToken(TokenType.symbol, "=");            // =
+            tokensXml.add("<expression>");
+            compileExpression();                                // exp2
+            tokensXml.add("</expression>");
+            writer.writePop(SymbolKind.temp, 0);          // save exp2 to temp 0
+            writer.writePop(SymbolKind.pointer, 1);       // pop pointer 1 (that is arr)
+            writer.writePush(SymbolKind.temp, 0);         // temp 0 to stack
+            writer.writePop(SymbolKind.that, 0);          // arr[exp] = temp 0 (exp2);
+        } else if (isGivenToken(TokenType.symbol, "(")) { // print'('a);
+            compileSubroutineCall(null);
+        } else if (isGivenToken(TokenType.symbol, ".")) { // a'.'method();
+            //checkToken(TokenType.symbol, ".");
+            compileSubroutineCall(var);
         } else {
             writer.writePush(var.getKind(), var.getIndex());
         }
     }
 
-    private void compileSubroutineCall() {
+    /**
+     * Var is object which contains this subroutine.
+     * @param var name of object which contain this subroutine call
+     */
+    private void compileSubroutineCall(Variable var) {
         boolean isCall = false;
         String name = "identifier";
-        checkIdentifier(); // compileSubroutineName();
+        //checkIdentifier();
         if (isGivenToken(TokenType.symbol, ".")) {
             checkToken(TokenType.symbol, ".");
             name = currentToken.getValue();
@@ -392,13 +447,29 @@ public class CompilationEngine {
             this.paramListIndex = 0;
             isCall = true;
         }
+        if (var != null) {
+            writer.writePush(var.getKind(), var.getIndex()); // Implicit push of method object.
+        }
         checkToken(TokenType.symbol, "(");
         tokensXml.add("<expressionList>");
         compileExpressionList();
         tokensXml.add("</expressionList>");
         checkToken(TokenType.symbol, ")");
-        if (isCall) {
-            writer.writeCall(name, paramListIndex);
+        if (isCall && var != null) {
+            writer.writeCall(var.getType()+"."+name, paramListIndex+1); // +1 cause of implicit push.
+        } else {
+            if (anotherClass != null) {
+                if (!name.equals("identifier")) {
+                    writer.writeCall(anotherClass+"."+name, paramListIndex);
+                } else {
+                    // Method.
+                    writer.writePush(SymbolKind.FIELD, 0);
+                    writer.writeCall(className+"."+anotherClass, paramListIndex+1);
+                }
+                anotherClass = null;
+            } else {
+                writer.writeCall(name, paramListIndex);
+            }
         }
     }
 
@@ -428,10 +499,23 @@ public class CompilationEngine {
 
     private void compileKeyWordConstant() {
         switch (currentToken.getValue()) {
-            case "true": checkToken(TokenType.keyword, "true"); break;
-            case "false": checkToken(TokenType.keyword, "false"); break;
-            case "null": checkToken(TokenType.keyword, "null"); break;
-            case "this": checkToken(TokenType.keyword, "this"); break;
+            case "true": {
+                checkToken(TokenType.keyword, "true");
+                writer.writePush(SymbolKind.constant, 1);   // True is -1.
+                writer.writeArithmetic(ArithmeticCommand.NEG);
+            } break;
+            case "false": {
+                checkToken(TokenType.keyword, "false");
+                writer.writePush(SymbolKind.constant, 0);   // False is 0.
+            } break;
+            case "null": {
+                checkToken(TokenType.keyword, "null");
+                writer.writePush(SymbolKind.constant, 0);   // Null is 0.
+            } break;
+            case "this": {
+                checkToken(TokenType.keyword, "this");
+                writer.writePush(SymbolKind.pointer, 0);    // This is pointer 0.
+            } break;
             default: checkToken(TokenType.keyword, "true/false/null/this");
         }
     }
@@ -442,8 +526,12 @@ public class CompilationEngine {
     }
 
     private void compileUnaryTerm() {
-        compileOp(true);
+        final String symbols = JackTokenizer.getSymbols();
+        int index = symbols.indexOf(currentToken.getValue());
+        compileOp();
         compileTerm();
+        // Write op after unary expression.
+        writeOp(symbols.charAt(index), true);
     }
 
     private boolean isUnaryOp() {
@@ -460,12 +548,11 @@ public class CompilationEngine {
         return false;
     }
 
-    private void compileOp(boolean isUnary) {
+    private void compileOp() {
         final String symbols = JackTokenizer.getSymbols();
         int index = symbols.indexOf(currentToken.getValue());
         if (currentToken.getType() == TokenType.symbol && index != -1) {
             checkToken(TokenType.symbol, String.valueOf(symbols.charAt(index)));
-            writeOp(symbols.charAt(index), isUnary);
         } else {
             checkToken(TokenType.symbol, symbols);
         }

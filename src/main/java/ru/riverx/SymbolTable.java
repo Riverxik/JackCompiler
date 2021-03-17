@@ -29,6 +29,7 @@ public class SymbolTable {
             case "static": return SymbolKind.STATIC;
             case "arg": return SymbolKind.ARG;
             case "var": return SymbolKind.VAR;
+            case "const": return SymbolKind.constant;
             default: throw new IllegalArgumentException("There is no kind: " + kind);
         }
     }
@@ -50,11 +51,13 @@ public class SymbolTable {
     public void resetKindCountSubroutine() {
         Variable.argumentCount = 0;
         Variable.localCount = 0;
+        subroutineLevel.clear();
     }
 
     public void resetKindCountClass() {
         Variable.staticCount = 0;
         Variable.fieldCount = 0;
+        classLevel.clear();
         resetKindCountSubroutine();
     }
 

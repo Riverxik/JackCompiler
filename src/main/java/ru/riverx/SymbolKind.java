@@ -5,5 +5,8 @@ public enum SymbolKind {
     FIELD,
     ARG,
     VAR,
-    constant
+    constant,
+    temp,
+    pointer,
+    that
 }

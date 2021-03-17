@@ -6,7 +6,7 @@ public enum Segment {
     local,
     STATIC,
     THIS,
-    THAT,
-    POINTER,
-    TEMP
+    that,
+    pointer,
+    temp
 }
