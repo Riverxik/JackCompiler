@@ -263,13 +263,17 @@ public class CompilationEngine {
         checkToken(TokenType.keyword, "let");
         String name = currentToken.getValue();
         Variable var = symbolTable.findVariable(name);
-        //compileIdentifier();
-        checkIdentifier();
-        checkToken(TokenType.symbol, "=");
-        tokensXml.add("<expression>");
-        compileExpression();
-        tokensXml.add("</expression>");
-        writer.writePop(var.getKind(), var.getIndex());
+        if (currentToken.getType() == TokenType.identifier && tokenizer.hasNextToken() &&
+        tokenizer.getSecondNextToken().getValue().equals("[")) {
+            compileIdentifier(); // array
+        } else {
+            checkIdentifier();  // if not array
+            checkToken(TokenType.symbol, "=");
+            tokensXml.add("<expression>");
+            compileExpression();
+            tokensXml.add("</expression>");
+            writer.writePop(var.getKind(), var.getIndex());
+        }
         checkToken(TokenType.symbol, ";");
         tokensXml.add("</letStatement>");
     }
@@ -386,7 +390,11 @@ public class CompilationEngine {
                 checkToken(TokenType.integerConstant, numStr);
                 writer.writeConstant(numStr);
             } break;
-            case stringConstant: checkToken(TokenType.stringConstant, currentToken.getValue()); break;
+            case stringConstant: {
+                String stringConst = currentToken.getValue();
+                checkToken(TokenType.stringConstant, stringConst);
+                compileString(stringConst, stringConst.length());
+            } break;
             case keyword: compileKeyWordConstant(); break;
             case identifier: compileIdentifier(); break;
             case symbol: {
@@ -397,6 +405,15 @@ public class CompilationEngine {
             default: throw new RuntimeException("Unexpected token: " + currentToken.toString() + ", expected: term");
         }
         tokensXml.add("</term>");
+    }
+
+    private void compileString(String stringConst, int length) {
+        writer.writePush(SymbolKind.constant, length);
+        writer.writeCall("String.new", 1);
+        for (char c : stringConst.toCharArray()) {
+            writer.writePush(SymbolKind.constant, (int)c);
+            writer.writeCall("String.appendChar", 2); // 0 is String base address, 1 is char
+        }
     }
 
     private void compileIdentifier() {
@@ -414,14 +431,19 @@ public class CompilationEngine {
             writer.writePush(var.getKind(), var.getIndex());    // push arr
             compileArrayExpression();                           // [exp]
             writer.writeArithmetic(ArithmeticCommand.ADD);      // arr + [exp]
-            checkToken(TokenType.symbol, "=");            // =
-            tokensXml.add("<expression>");
-            compileExpression();                                // exp2
-            tokensXml.add("</expression>");
-            writer.writePop(SymbolKind.temp, 0);          // save exp2 to temp 0
-            writer.writePop(SymbolKind.pointer, 1);       // pop pointer 1 (that is arr)
-            writer.writePush(SymbolKind.temp, 0);         // temp 0 to stack
-            writer.writePop(SymbolKind.that, 0);          // arr[exp] = temp 0 (exp2);
+            if (isGivenToken(TokenType.symbol, "=")) {
+                checkToken(TokenType.symbol, "=");            // =
+                tokensXml.add("<expression>");
+                compileExpression();                                // exp2
+                tokensXml.add("</expression>");
+                writer.writePop(SymbolKind.temp, 0);          // save exp2 to temp 0
+                writer.writePop(SymbolKind.pointer, 1);       // pop pointer 1 (that is arr)
+                writer.writePush(SymbolKind.temp, 0);         // temp 0 to stack
+                writer.writePop(SymbolKind.that, 0);          // arr[exp] = temp 0 (exp2);
+            } else {
+                writer.writePop(SymbolKind.pointer, 1);
+                writer.writePush(SymbolKind.that, 0);
+            }
         } else if (isGivenToken(TokenType.symbol, "(")) { // print'('a);
             compileSubroutineCall(null);
         } else if (isGivenToken(TokenType.symbol, ".")) { // a'.'method();
@@ -444,13 +466,13 @@ public class CompilationEngine {
             checkToken(TokenType.symbol, ".");
             name = currentToken.getValue();
             checkIdentifier();
-            this.paramListIndex = 0;
             isCall = true;
         }
         if (var != null) {
             writer.writePush(var.getKind(), var.getIndex()); // Implicit push of method object.
         }
         checkToken(TokenType.symbol, "(");
+        this.paramListIndex = 0;
         tokensXml.add("<expressionList>");
         compileExpressionList();
         tokensXml.add("</expressionList>");
@@ -463,7 +485,12 @@ public class CompilationEngine {
                     writer.writeCall(anotherClass+"."+name, paramListIndex);
                 } else {
                     // Method.
-                    writer.writePush(SymbolKind.FIELD, 0);
+                    writer.writePush(SymbolKind.pointer, 0);
+                    int numberOfArgs = paramListIndex + 1;
+                    int indexLast = writer.vmCode.size()-1;
+                    writer.vmCode.add(writer.vmCode.size() - numberOfArgs,
+                            writer.vmCode.get(indexLast)); // Copy last index before local args.
+                    writer.vmCode.remove(indexLast+1);    // Delete moved element.
                     writer.writeCall(className+"."+anotherClass, paramListIndex+1);
                 }
                 anotherClass = null;
