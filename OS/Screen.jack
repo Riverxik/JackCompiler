@@ -1,0 +1,134 @@
+/** OS Screen operations 
+ *	Author: RiVeRx
+ *	Date: 22.03.2021
+ */
+ class Screen {
+	field int baseScreen;
+	field boolean color;	// true - black, false - white.
+	field int width, height;
+	
+	function void init() {
+		let baseScreen = 16384;
+		let color = 0;
+		let width = 512;
+		let height = 256;
+		return;
+	}
+	
+	/** Clears the screen with white color */
+	function void clearScreen() {
+		do setColor(false); // Make white color.
+		do fillRectangle(0, 0, width, height);
+		return;
+	}
+	
+	/** Sets the color of a next drawing operations */
+	function void setColor(boolean c) {
+		let color = c;
+		return;
+	}
+	
+	/** Sets pixel (x,y) to the current color */
+	function void drawPixel(int x, int y) {
+		var int address, value, mask;
+		let address = 32 * y + x / 16;
+		let value = Memory.peek(baseScreen + address);
+		let mask = Math.getRemainder(x, 16); // x % 16
+		if (color) {
+			// Sets mask pixel to 1.
+			let value = value or Math.twoToThe[mask];
+		} else {
+			// Sets mask pixel to 0.
+			let mask  = ~mask; // negate the mask
+			let value = value and Math.twoToThe[mask];
+		}
+		
+		do Memory.poke(address, value);
+		return;
+	}
+	
+	/** Draws a line from (x1,y1) to (x2, y2) */
+	// Modify for a screen origin (0,0) at the screen's top left corner
+	// generalize to draw lines that go in any direction
+	// drawing horizontal and vertical lines should be handled as special cases
+	function void drawLine(int x1, int y1, int x2, int y2) {
+		var int x, y, dx, dy;
+		var int a, b, diff;
+		let x = x1;
+		let y = y1;
+		let dx = x2 - x1;
+		let dy = y2 - y1;
+		let a = 0;
+		let b = 0;
+		let diff = 0;
+		while ((a < dx) or (a = dx)) and ((b < dy) or (b = dy)) {
+			do drawPixel(x + a, y + b);
+			if (diff < 0) {
+				let a = a + 1;
+				let diff = diff + dy;
+			} else {
+				let b = b + 1;
+				let diff = diff - dx;
+			}
+		}
+		return;
+	}
+	
+	/** Draws a rectangle from (x1, y1) to (x2, y2) */
+	function void drawRectangle(int x1, int y1, int x2, int y2) {
+		do drawLine(x1, y1, x1, y2);
+		do drawLine(x1, y2, x2, y2);
+		do drawLine(x2, y2, x2, y1);
+		do drawLine(x1, y1, x2, y1);
+		return;
+	}
+	
+	function void fillRectangle(int x1, int y1, int x2, int y2) {
+		var int dy, temp;
+		// If x1 and x2 is reversed.
+		if (x2 < x1) {
+			let temp = x2;
+			let x2 = x1;
+			let x1 = temp;
+		}
+		// If y1 and y2 is reversed.
+		if (y2 < y1) {
+			let temp = y2;
+			let y2 = y1;
+			let y1 = temp;
+		}
+		let dy = 0;
+		while (dy < y2 + 1) {
+			do drawLine(x1, y1 + dy, x2, y1);
+			let dy = dy + 1;
+		}
+		return;
+	}
+	
+	/** Draws a filled circle with center point (x,y) and radius r */
+	function void drawCircle(int x, int y, int r) {
+		var int dy, temp;
+		if (r > 181) { return; } // Error potential overflow.
+		let dy = -r;
+		while (~(dy = r)) {
+			let temp = Math.sqrt(r*r - d*(y*y);
+			do drawLine(x - temp), y + dy, x + temp), y + dy);
+			let dy = dy + 1;
+		}
+		return;
+	}
+	
+	/** Draws a outline circle with center point (x,y) and radius r */
+	function void drawOutline(int x, int y, int r) {
+		var int dy, temp;
+		if (r > 181) { return; } // Error potential overflow.
+		let dy = -r;
+		while (~(dy = r)) {
+			let temp = Math.sqrt(r*r - d*(y*y);
+			do drawPixel(x - temp), y + dy);
+			do drawPixel(x + temp), y + dy);
+			let dy = dy + 1;
+		}
+		return;
+	}
+ }

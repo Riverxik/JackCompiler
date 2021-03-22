@@ -1,0 +1,68 @@
+/** OS Memory operations 
+ *	Author: RiVeRx
+ *	Date: 22.03.2021 
+ */
+class Memory {
+	static Array ram;
+	static Array heap;
+	field int free;
+	
+	function void init() {
+		let ram = 0; 		// Initialize ram hack.
+		let free = 2048;	// heapBase
+		let heap = 2048;
+		let heap[0] = 0;	// next
+		let heap[1] = 14335;// length
+		return;
+	}
+	
+	/** Returns the value of the given RAM address */
+	function int peek(int address) {
+		return ram[address];
+	}
+	
+	/** Sets the value of the given RAM address to the given value */
+	function void poke(int address, int value) {
+		let ram[address] = value;
+		return;
+	}
+	
+	/** Finds and allocates from the heap a memory block of the
+		specified size and returns a reference to it's base address */
+	function Array alloc(int size) {
+		var int block, possibleSize;
+		if (size > possibleSize) or (size = possibleSize) {
+			// size = heap[address-1]
+			// next = heap[address-2]
+		}
+		let block = free;
+		let free = free + size;
+		return block;
+	}
+	
+	// There is a TODO
+	function int firstFit(int size) {
+		var int freeList, block, listSize, possibleSize;
+		let freeList = heap;
+		while (~(freeList = 0)) {
+			let listSize = peek(freeList+1);
+			if (listSize = size) or (listSize > size) {
+				let block = freeList + 2;
+				do poke(freeList + 1, size);
+				return block;
+			} else {
+				freeList = peek(freeList);
+			}
+		}
+	}
+	
+	/** De-allocates the given object and frees it's space */
+	function void deAlloc(Array o) {
+		// Append o to the freeList
+	}
+	
+	/**  */
+	function void deFrag() {
+	
+	}
+}
