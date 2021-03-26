@@ -12,12 +12,13 @@ class Math {
 		let twoToThe = Array.new(16);	// Array for bit function.
 		while (i < 16) {
 			let twoToThe[i] = pow(2,i);
+			let i = i + 1;
 		}
 		return;
 	}
 	
 	/** Abs of x */
-	function abs(int x) {
+	function int abs(int x) {
 		if (x = 0) { return 0; }
 		if (x > 0) { return x; }
 		else { return -x; }
@@ -32,7 +33,7 @@ class Math {
 		let w = 0; // w-bit of number.
 		
 		while (w < 16) {
-			let temp = bit(y, w); Gets w-th bit of y
+			let temp = bit(y, w); // Gets w-th bit of y
 			if (temp = 1) {
 				let sum = sum + shiftedX;
 			}
@@ -46,15 +47,15 @@ class Math {
 	function int divide(int x, int y) {
 		var int q;
 		var boolean neg;
-		if (y = 0) { return -1; } 		// Error.
+		if (y = 0) { do Sys.error(3); } // Division by zero
 		if (x = 0) { return 0; }
 		let neg = resultNeg(x, y);
 		let x = abs(x);
 		let y = abs(y);
 		// divide |x| by |y| and set the result's sign
-		if (y > x) or (y < 0) { return 0; }
+		if ((y > x) | (y < 0)) { return 0; }
 		let q = divide(x, y + y);
-		if ((x - (q * (y + y)) < y) { 	// ((x - 2 * q * y) < y)
+		if (x - (q * (y + y)) < y) { 	// ((x - 2 * q * y) < y)
 			let q = q + q;
 		} else {
 			let q = q + q + 1;
@@ -68,17 +69,14 @@ class Math {
 	}
 	
 	function boolean resultNeg(int x, int y) {
-		if (x < 0) and (y > 0) or (x > 0) and (y < 0) {
-			return true;
-		}
-		return false;
+	    return (((x < 0) & (y > 0)) | ((x > 0) & (y < 0)));
 	}
 	
 	/** Returns remained of division (x % y) */
 	function int getRemainder(int x, int y) {
-		var mult;
-		let mult = x / y;
-		return x - (y * mult);
+		var int multi;
+		let multi = x / y;
+		return x - (y * multi);
 	}
 	
 	/** Minimum of x and y 
@@ -99,37 +97,48 @@ class Math {
 	
 	/** Square root */
 	function int sqrt(int x) {
-		var int y, j, n, temp;
+		var int y, j, n, temp, tPow;
+		if (x < 0) { do Sys.error(4); } // Cannot compute square root of a negative number.
 		let y = 0;
+		let n = 8; // Cause 16 bit sqrt uses max of 8 bits (if i get it right).
+		let j = 1; // just to drop into while.
 		while (j > 0) {
 			let j = (n / 2) - 1;
-			let temp = (y + pow(2,j)) * (y + pow(2,j));
-			if (temp > 0) and (temp < x) or (temp = x) {
+			let tPow = pow(2,j);
+			let temp = (y + tPow) * (y + tPow);
+			if ((temp > 0) & (~(temp > x))) {
 				let y = y + pow(2,j);
 			} else {
-				// Error overflow.
+			    let n = n - 1;
+				//do Sys.error(19); // Potential number overflow.
 			}
-			// if ((y + 2^j)^2 <= x) and ((y + 2^j)^2 > 0) 
-			// then y = y + 2^j;
-			// else overflow error
 		}
 		return y;
 	}
 	
 	/** Power x^y */
 	function int pow(int x, int y) {
+		var int answer, inc, i, j;
 		if (x = 0) { return 0; }
 		if (y = 0) { return 1; }
-		while (y > 1) {
-			x = x * x;
-			y = y - 1;
+		let answer = x;
+		let inc = x;
+		let i = 1;
+		while (i < y) {
+            let j = 1;
+            while (j < x) {
+                let answer = answer + inc;
+                let j = j + 1;
+            }
+            let inc = answer;
+            let i = i + 1;
 		}
-		return x;
+		return answer;
 	}
 	
 	/** Returns true if the i-th bit of x is 1, otherwise false */
 	function boolean bit(int x, int i) {
-		if (x = (twoToThe[i] and x)) {
+		if (x = (twoToThe[i] & x)) {
 			return true;
 		}
 		return false;

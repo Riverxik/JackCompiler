@@ -31,9 +31,12 @@ class Memory {
 		specified size and returns a reference to it's base address */
 	function Array alloc(int size) {
 		var int block, possibleSize;
-		if (size > possibleSize) or (size = possibleSize) {
+		if (~(size > 0)) { do Sys.error(5); } // Allocated memory size must be positive.
+		if (~(size < possibleSize)) {
 			// size = heap[address-1]
 			// next = heap[address-2]
+		} else {
+		    do Sys.error(6); // Heap overflow.
 		}
 		let block = free;
 		let free = free + size;

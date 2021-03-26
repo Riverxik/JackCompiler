@@ -31,6 +31,7 @@
 	/** Sets pixel (x,y) to the current color */
 	function void drawPixel(int x, int y) {
 		var int address, value, mask;
+		if (isPointIllegal(x, y)) { do Sys.error(7); } // Illegal pixel coordinates.
 		let address = 32 * y + x / 16;
 		let value = Memory.peek(baseScreen + address);
 		let mask = Math.getRemainder(x, 16); // x % 16
@@ -54,6 +55,7 @@
 	function void drawLine(int x1, int y1, int x2, int y2) {
 		var int x, y, dx, dy;
 		var int a, b, diff;
+		if (isPointIllegal(x1, y1) or isPointIllegal(x2, y2)) { do Sys.error(8); } // Illegal line coordinates
 		let x = x1;
 		let y = y1;
 		let dx = x2 - x1;
@@ -73,9 +75,14 @@
 		}
 		return;
 	}
+
+	function void isPointIllegal(int x, int y) {
+	    return ((x < 0) or (x > width) or (y < 0) or (y > height));
+	}
 	
 	/** Draws a rectangle from (x1, y1) to (x2, y2) */
 	function void drawRectangle(int x1, int y1, int x2, int y2) {
+	    if (isPointIllegal(x1, y1) or isPointIllegal(x2,y2)) { do Sys.error(9); } // Illegal rectangle coordinates.
 		do drawLine(x1, y1, x1, y2);
 		do drawLine(x1, y2, x2, y2);
 		do drawLine(x2, y2, x2, y1);
@@ -85,6 +92,7 @@
 	
 	function void fillRectangle(int x1, int y1, int x2, int y2) {
 		var int dy, temp;
+		if (isPointIllegal(x1, y1) or isPointIllegal(x2,y2)) { do Sys.error(9); } // Illegal rectangle coordinates.
 		// If x1 and x2 is reversed.
 		if (x2 < x1) {
 			let temp = x2;
@@ -108,7 +116,8 @@
 	/** Draws a filled circle with center point (x,y) and radius r */
 	function void drawCircle(int x, int y, int r) {
 		var int dy, temp;
-		if (r > 181) { return; } // Error potential overflow.
+		if (isPointIllegal(x, y)) { do Sys.error(10); } // Illegal center coordinates.
+		if (r > 181) { do Sys.error(11); } // Illegal radius error - potential overflow.
 		let dy = -r;
 		while (~(dy = r)) {
 			let temp = Math.sqrt(r*r - d*(y*y);
