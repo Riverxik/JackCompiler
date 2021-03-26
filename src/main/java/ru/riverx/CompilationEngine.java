@@ -12,6 +12,7 @@ public class CompilationEngine {
     private String className;
     private int paramListIndex;
     private int labelCount;
+    private int subIndex;
     private String anotherClass;
     private List<String> identifiers;
 
@@ -138,7 +139,7 @@ public class CompilationEngine {
     }
 
     private void compileSubroutineDec() {
-        int subIndex = compileSpecialSubroutineDec();
+        subIndex = compileSpecialSubroutineDec();
         if (subIndex >= 0) {
             ArrayList<Token> tokenList = new ArrayList<>();
             tokenList.add(new Token("void", TokenType.keyword));
@@ -485,13 +486,19 @@ public class CompilationEngine {
                     writer.writeCall(anotherClass+"."+name, paramListIndex);
                 } else {
                     // Method.
-                    writer.writePush(SymbolKind.pointer, 0);
-                    int numberOfArgs = paramListIndex + 1;
-                    int indexLast = writer.vmCode.size()-1;
-                    writer.vmCode.add(writer.vmCode.size() - numberOfArgs,
-                            writer.vmCode.get(indexLast)); // Copy last index before local args.
-                    writer.vmCode.remove(indexLast+1);    // Delete moved element.
-                    writer.writeCall(className+"."+anotherClass, paramListIndex+1);
+                    if (subIndex == 2) {
+                        writer.writePush(SymbolKind.pointer, 0);
+                        int numberOfArgs = paramListIndex + 1;
+                        int indexLast = writer.vmCode.size()-1;
+                        writer.vmCode.add(writer.vmCode.size() - numberOfArgs,
+                                writer.vmCode.get(indexLast)); // Copy last index before local args.
+                        writer.vmCode.remove(indexLast+1);    // Delete moved element.
+                        writer.writeCall(className+"."+anotherClass, paramListIndex+1);
+                    }
+                    // Function
+                    if (subIndex == 1) {
+                        writer.writeCall(className+"."+anotherClass, paramListIndex);
+                    }
                 }
                 anotherClass = null;
             } else {

@@ -2,11 +2,10 @@
  * A library for handling user input from the keyboard.
  */
 class Keyboard {
-	field int kbd;
 
 	/** Initializes the keyboard. */
     function void init() {
-		let kbd = 24576;
+		return;
     } 
 
     /**
@@ -31,12 +30,12 @@ class Keyboard {
      */
     function char keyPressed() {
 		var char value;
-		let value = Memory.peek(kbd);
+		let value = Memory.peek(24576);
 		if (value = 0) {
 			return 0;
 		} else {
-			if (value = 128) { return String.newline(); }
-			if (value = 129) { return String.backspace(); }
+			if (value = 128) { return String.newLine(); }
+			if (value = 129) { return String.backSpace(); }
 			return value;
 		}
     }
@@ -51,8 +50,7 @@ class Keyboard {
 		while (keyPressed() = 0) {}		// Wait for pressing a key.
 		let c = keyPressed();			// Reads the pressed key.
 		while (~(keyPressed() = 0)) {}	// Wait for releasing a key.
-		// display c;
-		// advance the cursor
+		do Output.printChar(c);         // Display pressed character and advance cursor.
 		return c;
     }
 
@@ -62,20 +60,21 @@ class Keyboard {
      * and returns its value. Also handles user backspaces.
      */
     function String readLine(String message) {
+		var char c, newLine, backSpace;
 		var String str;
-		var char c;
-		let str = String.new();
+		let newLine = String.newLine();
+		let backSpace = String.backSpace();
+		do Output.printString(message);
+		let str = String.new(80);
 		while (true) {
 			let c = readChar();
-			//if (c = new Line) {
-				// new line
-				return str;
+			if (c = newLine) {
+			    return str;
 			} else {
-				// if (c = backspace) {
-					// remove last character from str
-					do Output.backspace();
+			    if (c = backSpace) {
+			        do str.eraseLastChar();
 				} else {
-					str = str.append(c);
+					let str = str.appendChar(c);
 				}
 			}
 		}
@@ -88,5 +87,11 @@ class Keyboard {
      * entered text is detected). Also handles user backspaces. 
      */
     function int readInt(String message) {
+        var String str;
+        var int value;
+        let str = readLine(message);
+        let value = str.intValue();
+        do str.dispose();
+        return value;
     }
 }
