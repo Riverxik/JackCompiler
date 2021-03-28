@@ -6,26 +6,28 @@ class Math {
 	static Array twoToThe;
 	
 	/** Initialization function */
-	/*
-	function void init() {
-		var int i;
-		let i = 0;
-		let twoToThe = Array.new(16);	// Array for bit function.
-		while (i < 16) {
-			let twoToThe[i] = pow(2,i);
-			let i = i + 1;
-		}
-		return;
-	} */
 	function void init() {
 		var int x;
-		//let twoToThe1 = Array.new(16);
 		let x = 0;
-		let twoToThe = Array.new(16);
+		let twoToThe = Array.new(16); // Array for bit function.
 		let twoToThe[0] = 1;
 		while (x < 15) {
 			let x = x + 1;
 			let twoToThe[x] = twoToThe[x - 1] + twoToThe[x - 1];
+		}
+		return;
+	}
+	
+	function void printArray() {
+		var int x;
+		let x = 0;
+		while (x < 16) {
+			do Output.printString("2^");
+			do Output.printInt(x);
+			do Output.printString("= ");
+			do Output.printInt(twoToThe[x]);
+			do Output.println();
+			let x = x + 1;
 		}
 		return;
 	}
@@ -40,14 +42,12 @@ class Math {
 	/** Multiply function */
 	function int multiply(int x, int y) {
 		var int sum, shiftedX, w;
-		var boolean temp;
 		let sum = 0;
 		let shiftedX = x;
 		let w = 0; // w-bit of number.
 		
 		while (w < 16) {
-			let temp = bit(y, w); // Gets w-th bit of y
-			if (temp = 1) {
+			if (bit(y, w)) { // Gets w-th bit of y
 				let sum = sum + shiftedX;
 			}
 			let shiftedX = shiftedX + shiftedX;
@@ -110,45 +110,19 @@ class Math {
 	
 	/** Square root */
 	function int sqrt(int x) {
-		var int y, j, n, temp, tPow;
+		var int y, j, temp, tPow;
 		if (x < 0) { do Sys.error(4); } // Cannot compute square root of a negative number.
 		let y = 0;
-		let n = 7; // Cause 16 bit sqrt uses max of 8 bits (if i get it right).
-		let j = 1; // just to drop into while.
-		while (j > 0) {
-			let j = (n / 2) - 1;
-			let tPow = pow(2, j);
-			let temp = pow(y+tPow,2);
-			//do Debug.logInt("j= ", j);
-			//do Debug.logInt("tPow= ", tPow);
-			//do Debug.logInt("temp= ", temp);
-			if ((temp > 0) & (~(temp > x))) {
-				let y = y + tPow;
-				//do Debug.logInt("y= ", y);
-			} else {
-			    let n = n - 1;
-				//do Debug.logInt("n= ", n);
+		let j = 7; // Cause 16 bit sqrt uses max of 8 bits - 1 (if i get it right). 
+		while (~(j < 0)) {
+			let temp = y + twoToThe[j];
+			let tPow = temp * temp; //pow(temp, 2);
+			if ((~(tPow > x)) & (tPow > 0)) {
+				let y = temp;
 			}
+			let j = j - 1;
 		}
 		return y;
-	}
-	
-	function int sqrt2(int x) {
-		var int t0, t1, t2, t3;
-		if (x < 0) { do Sys.error(4); }
-		else {
-			let t0 = 7;
-			while (~(t0 > -1)) {
-				let t1 = t3 + twoToThe[t0];
-				let t2 = t1 * t1;
-				if ((t2 < x) & (t2 > 0)) {
-					let t3 = t1;
-				} else {
-					let t0 = t0 - 1;
-				}
-			}
-			return t3;
-		}
 	}
 	
 	/** Power x^y */
@@ -173,9 +147,10 @@ class Math {
 	
 	/** Returns true if the i-th bit of x is 1, otherwise false */
 	function boolean bit(int x, int i) {
-		if (x = (twoToThe[i] & x)) {
+		return ~((x & twoToThe[i]) = 0);
+		/* if (x = (twoToThe[i] & x)) {
 			return true;
 		}
-		return false;
+		return false; */
 	}
 }
