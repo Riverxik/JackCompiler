@@ -4,12 +4,17 @@
  */
  class Output {
 	static Array charMaps; // Character map for displaying characters.
-	field int rows;
-	field int columns;
+	static int maxRows;
+	static int maxColumns;
+	static int currentRow, currentColumn;
 	
 	function void init() {
-		let rows = 23;		// height
-		let colomns = 64;	// width
+		let maxRows = 23;		// height
+		let maxColumns = 64;	// width
+		let currentColumn = 0;  // x
+		let currentRow = 0;     // y
+		do Output.initMap();
+		return;
 	}
 	
 	/* Initializes the character map array */
@@ -21,7 +26,7 @@
         // Black square, used for displaying non-printable characters.
         do Output.create(0,63,63,63,63,63,63,63,63,63,0,0);
 
-        // Assigns the bitmap for each character in the charachter set.
+        // Assigns the bitmap for each character in the character set.
         // The first parameter is the character index, the next 11 numbers
         // are the values of each row in the frame that represents this character.
         do Output.create(32,0,0,0,0,0,0,0,0,0,0,0);          //
@@ -60,7 +65,7 @@
         do Output.create(64,30,51,51,59,59,59,27,3,30,0,0);  // @
         do Output.create(63,30,51,51,24,12,12,0,12,12,0,0);  // ?
 
-        do Output.create(65,0,0,0,0,0,0,0,0,0,0,0);          // A ** TO BE FILLED **
+        do Output.create(65,0,0,0,14,24,30,27,27,54,0,0);          // A ** TO BE FILLED **
         do Output.create(66,31,51,51,51,31,51,51,51,31,0,0); // B
         do Output.create(67,28,54,35,3,3,3,35,54,28,0,0);    // C
         do Output.create(68,15,27,51,51,51,51,51,27,15,0,0); // D
@@ -126,7 +131,7 @@
         do Output.create(125,7,12,12,12,56,12,12,12,7,0,0);    // }
         do Output.create(126,38,45,25,0,0,0,0,0,0,0,0);        // ~
 
-	return;
+	    return;
     }
 
     // Creates the character map array of the given character index, using the given values.
@@ -165,28 +170,83 @@
 	/** Moves the cursor to the j-th column of the i-th row,
      *  and erases the character displayed there. */
     function void moveCursor(int i, int j) {
+        let currentColumn = i;
+        let currentRow = j;
+        return;
     }
 
     /** Displays the given character at the cursor location,
      *  and advances the cursor one column forward. */
     function void printChar(char c) {
+        var Array printedChar;
+        var int base, address, i;
+		let base = 16384;
+        let printedChar = getMap(c);
+        let address = base + (32 * currentRow) + (currentColumn / 16);
+        while (i < 11) {
+            do Memory.poke(address + (i * 32), printedChar[i]);
+			let i = i + 1;
+        }
+		do printedChar.dispose();
+        do advanceCursor();
+        return;
+    }
+
+    function void advanceCursor() {
+        if (currentColumn + 1 < maxColumns) {
+            let currentColumn = currentColumn + 1;
+        } else {
+            let currentColumn = 0;
+            if (currentRow + 1 < maxRows) {
+                let currentRow = currentRow + 1;
+            } else {
+                let currentRow = 0;
+            }
+        }
+        return;
     }
 
     /** displays the given string starting at the cursor location,
      *  and advances the cursor appropriately. */
     function void printString(String s) {
+        var int i, len;
+        let len = s.length();
+        while (i < len) {
+            do printChar(s.charAt(i));
+            let i = i + 1;
+        }
+        return;
     }
 
     /** Displays the given integer starting at the cursor location,
      *  and advances the cursor appropriately. */
     function void printInt(int i) {
+        var String str;
+		let str = String.new(6); // Max int is 32767 + sign = 6 displayed chars
+        do str.setInt(i);
+        do printString(str);
+        do str.dispose();
+        return;
     }
 
     /** Advances the cursor to the beginning of the next line. */
     function void println() {
+        if (currentRow + 1 < maxRows) {
+            let currentRow = currentRow + 1;
+        } else {
+            let currentRow = 0;
+        }
+        let currentColumn = 0;
+        return;
     }
 
     /** Moves the cursor one column back. */
     function void backSpace() {
+        if (currentColumn > 0) {
+            let currentColumn = currentColumn - 1;
+        } else {
+            do Sys.error(18); // Illegal cursor location.
+        }
+        return;
     }
  }
