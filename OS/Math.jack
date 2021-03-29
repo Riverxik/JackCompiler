@@ -68,7 +68,7 @@ class Math {
 		// divide |x| by |y| and set the result's sign
 		if ((y > x) | (y < 0)) { return 0; }
 		let q = divide(x, y + y);
-		if (x - (q * (y + y)) < y) { 	// ((x - 2 * q * y) < y)
+		if ((x - (q * (y + y))) < y) { 	// ((x - 2 * q * y) < y)
 			let q = q + q;
 		} else {
 			let q = q + q + 1;
