@@ -65,7 +65,7 @@
         do Output.create(64,30,51,51,59,59,59,27,3,30,0,0);  // @
         do Output.create(63,30,51,51,24,12,12,0,12,12,0,0);  // ?
 
-        do Output.create(65,60,102,102,102,126,102,102,102,102,0,0);// A ** TO BE FILLED **
+        do Output.create(65,60,102,102,102,126,102,102,102,102,0,0);// A
         do Output.create(66,31,51,51,51,31,51,51,51,31,0,0); // B
         do Output.create(67,28,54,35,3,3,3,35,54,28,0,0);    // C
         do Output.create(68,15,27,51,51,51,51,51,27,15,0,0); // D
@@ -137,9 +137,8 @@
     // Creates the character map array of the given character index, using the given values.
     function void create(int index, int a, int b, int c, int d, int e,
                          int f, int g, int h, int i, int j, int k) {
-	var Array map;
-
-	let map = Array.new(11);
+		var Array map;
+		let map = Array.new(11);
         let charMaps[index] = map;
 
         let map[0] = a;
@@ -191,39 +190,31 @@
      *  and advances the cursor one column forward. */
     function void printChar(char c) {
         var Array printedChar;
-        var int base, address, i, side, oldValue, shifted, newValue, mask;
-		// 			1111 1111 0000 0000			0000 0000 1111 1111.
-		//if (c = 32) { let mask = -256;  } else { let mask = 255; } 
-		let mask = 255; // 0000 0000 1111 1111.
-		let base = 16384; // Screen base address.
-        let printedChar = getMap(c);
-		let side = Math.getRemainder(currentColumn, 2); // first or second part.
-		// Checks for calculating correct memory address.
-        if (currentColumn > maxColumns) { 
-			let currentColumn = Math.getRemainder(currentColumn, maxColumns);
-		}
-		if (currentRow > maxRows) {
-			let currentRow = Math.getRemainder(currentRow, maxRows);
-		}
+        var int address, i, side, oldValue, shifted, newValue, mask, nMask;
+		let mask = 255; 				// 0000 0000 1111 1111.
+		let nMask = -256; 				// 1111 1111 0000 0000.
+        let printedChar = getMap(c); 	// Gets the character map.
+		let side = currentColumn & 1; 	// First or second part.
+
 		// Calculating memory address.
-		let address = base + (352 * currentRow) + (currentColumn / 2);
+		// Where 16384 - Screen base address,
+		// 352 - 32 characters in row with 11 pixel lines each.
+		// Each memory address includes 2 characters (8 bit each other).
+		let address = 16384 + (352 * currentRow) + (currentColumn / 2);		 
 		// Printing loop.
 		while (i < 11) {
-			if (~side) {
-				// First 8 bits.
-				let oldValue = Memory.peek(address + (i * 32));
-				let newValue = (oldValue & ~mask) | printedChar[i];
-				do Memory.poke(address + (i * 32), newValue);
-			} else {
-				// Second 8 bits.
-				let oldValue = Memory.peek(address + (i * 32)); // First 8 bits
-				let shifted = printedChar[i] * 256;			// Char map shifted by 8 bits.
-				let newValue = (oldValue & mask) | shifted;
-				do Memory.poke(address + (i * 32), newValue);
+			let oldValue = Memory.peek(address);						// Save an old value.
+			if (~side) {												// First 8 bits.
+				let newValue = (oldValue & nMask) | printedChar[i];		// Calculating new value.
+			} else { 													// Second 8 bits.
+				let shifted = printedChar[i] * 256;						// Char map shifted by 8 bits.
+				let newValue = (oldValue & mask) | shifted;				// Calculating new value.
 			}
+			do Memory.poke(address, newValue);							// Save new value to memory.
+			let address = address + 32;									// Get next address.
 			let i = i + 1;
 		}
-        do advanceCursor();
+        do advanceCursor();												// Advances the cursor.
         return;
     }
 
