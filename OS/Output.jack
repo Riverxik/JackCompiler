@@ -65,7 +65,7 @@
         do Output.create(64,30,51,51,59,59,59,27,3,30,0,0);  // @
         do Output.create(63,30,51,51,24,12,12,0,12,12,0,0);  // ?
 
-        do Output.create(65,0,0,0,14,24,30,27,27,54,0,0);          // A ** TO BE FILLED **
+        do Output.create(65,60,102,102,102,126,102,102,102,102,0,0);// A ** TO BE FILLED **
         do Output.create(66,31,51,51,51,31,51,51,51,31,0,0); // B
         do Output.create(67,28,54,35,3,3,3,35,54,28,0,0);    // C
         do Output.create(68,15,27,51,51,51,51,51,27,15,0,0); // D
@@ -170,8 +170,20 @@
 	/** Moves the cursor to the j-th column of the i-th row,
      *  and erases the character displayed there. */
     function void moveCursor(int i, int j) {
-        let currentColumn = i;
-        let currentRow = j;
+		var int temp, abs, q;
+		// Overflow checks.
+		if (j > maxColumns) {
+			let j = Math.getRemainder(j, maxColumns);
+		}
+		if (i > maxRows) {
+			let i = Math.getRemainder(i, maxRows);
+		}
+		// Moves the cursor to the legal coordinates.
+        let currentRow = i;
+        let currentColumn = j;
+		do printChar(32);
+		let currentRow = i;
+        let currentColumn = j;
         return;
     }
 
@@ -179,25 +191,48 @@
      *  and advances the cursor one column forward. */
     function void printChar(char c) {
         var Array printedChar;
-        var int base, address, i;
-		let base = 16384;
+        var int base, address, i, side, oldValue, shifted, newValue, mask;
+		// 			1111 1111 0000 0000			0000 0000 1111 1111.
+		//if (c = 32) { let mask = -256;  } else { let mask = 255; } 
+		let mask = 255; // 0000 0000 1111 1111.
+		let base = 16384; // Screen base address.
         let printedChar = getMap(c);
-        let address = base + (32 * currentRow) + (currentColumn / 16);
-        while (i < 11) {
-            do Memory.poke(address + (i * 32), printedChar[i]);
+		let side = Math.getRemainder(currentColumn, 2); // first or second part.
+		// Checks for calculating correct memory address.
+        if (currentColumn > maxColumns) { 
+			let currentColumn = Math.getRemainder(currentColumn, maxColumns);
+		}
+		if (currentRow > maxRows) {
+			let currentRow = Math.getRemainder(currentRow, maxRows);
+		}
+		// Calculating memory address.
+		let address = base + (352 * currentRow) + (currentColumn / 2);
+		// Printing loop.
+		while (i < 11) {
+			if (~side) {
+				// First 8 bits.
+				let oldValue = Memory.peek(address + (i * 32));
+				let newValue = (oldValue & ~mask) | printedChar[i];
+				do Memory.poke(address + (i * 32), newValue);
+			} else {
+				// Second 8 bits.
+				let oldValue = Memory.peek(address + (i * 32)); // First 8 bits
+				let shifted = printedChar[i] * 256;			// Char map shifted by 8 bits.
+				let newValue = (oldValue & mask) | shifted;
+				do Memory.poke(address + (i * 32), newValue);
+			}
 			let i = i + 1;
-        }
-		do printedChar.dispose();
+		}
         do advanceCursor();
         return;
     }
 
     function void advanceCursor() {
-        if (currentColumn + 1 < maxColumns) {
+        if ((currentColumn + 1) < maxColumns) {
             let currentColumn = currentColumn + 1;
         } else {
             let currentColumn = 0;
-            if (currentRow + 1 < maxRows) {
+            if ((currentRow + 1) < maxRows) {
                 let currentRow = currentRow + 1;
             } else {
                 let currentRow = 0;
@@ -210,9 +245,11 @@
      *  and advances the cursor appropriately. */
     function void printString(String s) {
         var int i, len;
+		var char c;
         let len = s.length();
         while (i < len) {
-            do printChar(s.charAt(i));
+			let c = s.charAt(i);
+            do printChar(c);
             let i = i + 1;
         }
         return;
@@ -231,7 +268,7 @@
 
     /** Advances the cursor to the beginning of the next line. */
     function void println() {
-        if (currentRow + 1 < maxRows) {
+        if ((currentRow + 1) < maxRows) {
             let currentRow = currentRow + 1;
         } else {
             let currentRow = 0;
@@ -244,6 +281,7 @@
     function void backSpace() {
         if (currentColumn > 0) {
             let currentColumn = currentColumn - 1;
+			do moveCursor(currentRow, currentColumn);
         } else {
             do Sys.error(18); // Illegal cursor location.
         }
