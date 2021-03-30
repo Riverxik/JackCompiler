@@ -18,6 +18,8 @@ class Math {
 		return;
 	}
 	
+	function Array getTwoToThe() { return twoToThe; }
+	
 	function void printArray() {
 		var int x;
 		let x = 0;

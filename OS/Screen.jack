@@ -3,13 +3,11 @@
  *	Date: 22.03.2021
  */
  class Screen {
-	field int baseScreen;
-	field boolean color;	// true - black, false - white.
-	field int width, height;
+	static boolean color;	// true - black, false - white.
+	static int width, height;
 	
 	function void init() {
-		let baseScreen = 16384;
-		let color = 0;
+		let color = true;
 		let width = 512;
 		let height = 256;
 		return;
@@ -30,18 +28,21 @@
 	
 	/** Sets pixel (x,y) to the current color */
 	function void drawPixel(int x, int y) {
-		var int address, value, mask;
+		var int address, value, mask, temp;
+		var Array twoToThe;
 		if (isPointIllegal(x, y)) { do Sys.error(7); } // Illegal pixel coordinates.
-		let address = 32 * y + x / 16;
-		let value = Memory.peek(baseScreen + address);
+		let address = 16384 + (32 * y) + (x / 16);
+		let value = Memory.peek(address); // baseScreen + address.
 		let mask = Math.getRemainder(x, 16); // x % 16
+		let twoToThe = Math.getTwoToThe();
+		let temp = twoToThe[mask];
 		if (color) {
 			// Sets mask pixel to 1.
-			let value = value or Math.twoToThe[mask];
+			let value = value | temp;
 		} else {
 			// Sets mask pixel to 0.
 			let mask  = ~mask; // negate the mask
-			let value = value and Math.twoToThe[mask];
+			let value = value & temp;
 		}
 		
 		do Memory.poke(address, value);
@@ -49,25 +50,55 @@
 	}
 	
 	/** Draws a line from (x1,y1) to (x2, y2) */
-	// Modify for a screen origin (0,0) at the screen's top left corner
-	// generalize to draw lines that go in any direction
-	// drawing horizontal and vertical lines should be handled as special cases
 	function void drawLine(int x1, int y1, int x2, int y2) {
 		var int x, y, dx, dy;
+		var int max, temp;
 		var int a, b, diff;
-		if (isPointIllegal(x1, y1) or isPointIllegal(x2, y2)) { do Sys.error(8); } // Illegal line coordinates
+		var boolean side;
+		if (isPointIllegal(x1, y1) | isPointIllegal(x2, y2)) { do Sys.error(8); } // Illegal line coordinates
+		// Horizontal lines.
+		if (y1 = y2) {
+			let max = Math.max(x1, x2);
+			let x = Math.min(x1, x2);
+			while (x < max) {
+				do drawPixel(x, y1);
+				let x = x + 1;
+			}
+			return;
+		}
+		// Vertical lines.
+		if (x1 = x2) {
+			let max = Math.max(y1, y2);
+			let y = Math.min(y1, y2);
+			while (y < max) {
+				do drawPixel(x1, y );
+				let y = y + 1;
+			}
+			return;
+		}
+		// Angle lines.
+		if ((x1 > x2)) { 	// For mirroring.
+			let temp = x1;
+			let x1 = x2;
+			let x2 = temp;
+			let temp = y1;
+			let y1 = y2;
+			let y2 = temp;
+		}
+		if (y1 > y2) { let side = true; }
 		let x = x1;
 		let y = y1;
-		let dx = x2 - x1;
-		let dy = y2 - y1;
-		let a = 0;
-		let b = 0;
-		let diff = 0;
-		while ((a < dx) or (a = dx)) and ((b < dy) or (b = dy)) {
-			do drawPixel(x + a, y + b);
+		let dx = Math.abs(x2 - x1);
+		let dy = Math.abs(y2 - y1);
+		while (((a < dx) | (a = dx)) & ((b < dy) | (b = dy))) {
+			if (side) {
+				do drawPixel(x + a, y - b);
+			} else {
+				do drawPixel(x + a, y + b);
+			}
 			if (diff < 0) {
 				let a = a + 1;
-				let diff = diff + dy;
+				let diff = diff + dy; 	
 			} else {
 				let b = b + 1;
 				let diff = diff - dx;
@@ -76,13 +107,13 @@
 		return;
 	}
 
-	function void isPointIllegal(int x, int y) {
-	    return ((x < 0) or (x > width) or (y < 0) or (y > height));
+	function boolean isPointIllegal(int x, int y) {
+	    return ((x < 0) | (x > width) | (y < 0) | (y > height));
 	}
 	
 	/** Draws a rectangle from (x1, y1) to (x2, y2) */
 	function void drawRectangle(int x1, int y1, int x2, int y2) {
-	    if (isPointIllegal(x1, y1) or isPointIllegal(x2,y2)) { do Sys.error(9); } // Illegal rectangle coordinates.
+	    if (isPointIllegal(x1, y1) | isPointIllegal(x2,y2)) { do Sys.error(9); } // Illegal rectangle coordinates.
 		do drawLine(x1, y1, x1, y2);
 		do drawLine(x1, y2, x2, y2);
 		do drawLine(x2, y2, x2, y1);
@@ -92,22 +123,16 @@
 	
 	function void fillRectangle(int x1, int y1, int x2, int y2) {
 		var int dy, temp;
-		if (isPointIllegal(x1, y1) or isPointIllegal(x2,y2)) { do Sys.error(9); } // Illegal rectangle coordinates.
-		// If x1 and x2 is reversed.
-		if (x2 < x1) {
-			let temp = x2;
-			let x2 = x1;
-			let x1 = temp;
-		}
+		if (isPointIllegal(x1, y1) | isPointIllegal(x2,y2)) { do Sys.error(9); } // Illegal rectangle coordinates.
 		// If y1 and y2 is reversed.
-		if (y2 < y1) {
+		if (y1 > y2) {
 			let temp = y2;
 			let y2 = y1;
 			let y1 = temp;
 		}
-		let dy = 0;
-		while (dy < y2 + 1) {
-			do drawLine(x1, y1 + dy, x2, y1);
+		let dy = y1;
+		while (dy < y2) {
+			do drawLine(x1, y1 + dy, x2, y1 + dy);
 			let dy = dy + 1;
 		}
 		return;
@@ -115,13 +140,15 @@
 	
 	/** Draws a filled circle with center point (x,y) and radius r */
 	function void drawCircle(int x, int y, int r) {
-		var int dy, temp;
+		var int dy, temp, rq, yq;
 		if (isPointIllegal(x, y)) { do Sys.error(10); } // Illegal center coordinates.
 		if (r > 181) { do Sys.error(11); } // Illegal radius error - potential overflow.
 		let dy = -r;
 		while (~(dy = r)) {
-			let temp = Math.sqrt(r*r - d*(y*y);
-			do drawLine(x - temp), y + dy, x + temp), y + dy);
+			let rq = r * r;
+			let yq = y * y;
+			let temp = Math.sqrt(rq - (dy * yq));
+			do drawLine(x - temp, y + dy, x + temp, y + dy);
 			let dy = dy + 1;
 		}
 		return;
@@ -129,13 +156,15 @@
 	
 	/** Draws a outline circle with center point (x,y) and radius r */
 	function void drawOutline(int x, int y, int r) {
-		var int dy, temp;
+		var int dy, temp, rq, yq;
 		if (r > 181) { return; } // Error potential overflow.
 		let dy = -r;
 		while (~(dy = r)) {
-			let temp = Math.sqrt(r*r - d*(y*y);
-			do drawPixel(x - temp), y + dy);
-			do drawPixel(x + temp), y + dy);
+			let rq = r * r;
+			let yq = y * y;
+			let temp = Math.sqrt(rq - (dy * yq)); // d * yq
+			do drawPixel(x - temp, y + dy);
+			do drawPixel(x + temp, y + dy);
 			let dy = dy + 1;
 		}
 		return;
