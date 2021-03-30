@@ -132,7 +132,7 @@
 		}
 		let dy = y1;
 		while (dy < y2) {
-			do drawLine(x1, y1 + dy, x2, y1 + dy);
+			do drawLine(x1, dy, x2, dy);
 			let dy = dy + 1;
 		}
 		return;
@@ -140,15 +140,16 @@
 	
 	/** Draws a filled circle with center point (x,y) and radius r */
 	function void drawCircle(int x, int y, int r) {
-		var int dy, temp, rq, yq;
+		var int dy, temp, rq, yq, t;
 		if (isPointIllegal(x, y)) { do Sys.error(10); } // Illegal center coordinates.
-		if (r > 181) { do Sys.error(11); } // Illegal radius error - potential overflow.
+		if ((r > 181) | (r < 1)) { do Sys.error(11); } // Illegal radius error - potential overflow.
 		let dy = -r;
-		while (~(dy = r)) {
-			let rq = r * r;
-			let yq = y * y;
-			let temp = Math.sqrt(rq - (dy * yq));
-			do drawLine(x - temp, y + dy, x + temp, y + dy);
+		let rq = r * r;
+		let yq = y * y;
+		while (dy < r) {
+			let t = rq - (dy * yq);
+			let temp = Math.sqrt(t);
+			do drawLine((x - temp), (y + dy), (x + temp), (y + dy));
 			let dy = dy + 1;
 		}
 		return;
@@ -157,11 +158,11 @@
 	/** Draws a outline circle with center point (x,y) and radius r */
 	function void drawOutline(int x, int y, int r) {
 		var int dy, temp, rq, yq;
-		if (r > 181) { return; } // Error potential overflow.
+		if ((r > 181) | (r < 1)) { do Sys.error(11); } // Error potential overflow.
 		let dy = -r;
-		while (~(dy = r)) {
-			let rq = r * r;
-			let yq = y * y;
+		let rq = r * r;
+		let yq = y * y;
+		while (dy < r) {
 			let temp = Math.sqrt(rq - (dy * yq)); // d * yq
 			do drawPixel(x - temp, y + dy);
 			do drawPixel(x + temp, y + dy);
