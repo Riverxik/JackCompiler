@@ -6,11 +6,14 @@ class Sys {
     /** Performs all the initializations required by the OS. */
     function void init() {
         // Initialize OS libs.
-        do Math.init();
         do Memory.init();
+        do Math.init();
         do Screen.init();
+        do Output.init();
+        do Keyboard.init();
         // Call Main application.
         do Main.main();
+        do halt();
         return;
     }
 
@@ -18,7 +21,6 @@ class Sys {
     function void halt() {
         while (true) {}
         return;
-        // Maybe infinity loop (not elegant).
     }
 
     /** Waits approximately duration milliseconds and returns.  */
