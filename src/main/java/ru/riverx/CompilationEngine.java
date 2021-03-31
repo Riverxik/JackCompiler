@@ -465,7 +465,12 @@ public class CompilationEngine {
         //checkIdentifier();
         if (isGivenToken(TokenType.symbol, ".")) {
             checkToken(TokenType.symbol, ".");
-            name = currentToken.getValue();
+            if (anotherClass != null) {
+                name = anotherClass + "." + currentToken.getValue();
+                anotherClass = null;
+            } else {
+                name = currentToken.getValue();
+            }
             checkIdentifier();
             isCall = true;
         }
@@ -505,6 +510,7 @@ public class CompilationEngine {
                 writer.writeCall(name, paramListIndex);
             }
         }
+        paramListIndex = 0;
     }
 
     private void compileExpressionList() {
