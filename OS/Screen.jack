@@ -41,8 +41,7 @@
 			let value = value | temp;
 		} else {
 			// Sets mask pixel to 0.
-			let mask  = ~mask; // negate the mask
-			let value = value & temp;
+			let value = value & ~temp;
 		}
 		
 		do Memory.poke(address, value);
@@ -71,7 +70,7 @@
 			let max = Math.max(y1, y2);
 			let y = Math.min(y1, y2);
 			while (y < max) {
-				do drawPixel(x1, y );
+				do drawPixel(x1, y);
 				let y = y + 1;
 			}
 			return;
@@ -140,16 +139,14 @@
 	
 	/** Draws a filled circle with center point (x,y) and radius r */
 	function void drawCircle(int x, int y, int r) {
-		var int dy, temp, rq, yq, t;
+		var int dy, dx, rSqr;
 		if (isPointIllegal(x, y)) { do Sys.error(10); } // Illegal center coordinates.
 		if ((r > 181) | (r < 1)) { do Sys.error(11); } // Illegal radius error - potential overflow.
 		let dy = -r;
-		let rq = r * r;
-		let yq = y * y;
+		let rSqr = r * r;
 		while (dy < r) {
-			let t = rq - (dy * yq);
-			let temp = Math.sqrt(t);
-			do drawLine((x - temp), (y + dy), (x + temp), (y + dy));
+			let dx = Math.sqrt(rSqr - (dy * dy));
+			do drawLine(x - dx, y + dy, x + dx, y + dy);
 			let dy = dy + 1;
 		}
 		return;
@@ -157,15 +154,14 @@
 	
 	/** Draws a outline circle with center point (x,y) and radius r */
 	function void drawOutline(int x, int y, int r) {
-		var int dy, temp, rq, yq;
+		var int dy, dx, rSqr;
 		if ((r > 181) | (r < 1)) { do Sys.error(11); } // Error potential overflow.
 		let dy = -r;
-		let rq = r * r;
-		let yq = y * y;
+		let rSqr = r * r;
 		while (dy < r) {
-			let temp = Math.sqrt(rq - (dy * yq)); // d * yq
-			do drawPixel(x - temp, y + dy);
-			do drawPixel(x + temp, y + dy);
+			let dx = Math.sqrt(rSqr - (dy * dy));
+			do drawPixel(x - dx, y + dy);
+			do drawPixel(x + dx, y + dy);
 			let dy = dy + 1;
 		}
 		return;
