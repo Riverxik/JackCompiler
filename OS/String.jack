@@ -7,14 +7,18 @@
  */
 class String {
     field Array str;
+	field int strMaxLength;
     field int length;
-    field int strMaxLength;
 
     /** Constructs a new empty string with a maximum length of maxLength
      *  and initial length of 0. */
     constructor String new(int maxLength) {
-        if (maxLength < 0) { do Sys.error(12); } // Maximum length must be non-negative.
-        let str = Array.new(maxLength);
+		if (maxLength < 0) { do Sys.error(12); } // Maximum length must be non-negative.
+        if (maxLength = 0) { 
+			let str = Array.new(1);
+		} else {
+			let str = Array.new(maxLength);
+		}
         let strMaxLength = maxLength;
         let length = 0;
         return this;
@@ -33,13 +37,13 @@ class String {
 
     /** Returns the character at the j-th location of this string. */
     method char charAt(int j) {
-        if (~(j < length)) { do Sys.error(13); } // String index out of bounds.
+        if (~(j < length) | (j < 0)) { do Sys.error(13); } // String index out of bounds.
         return str[j];
     }
 
     /** Sets the character at the j-th location of this string to c. */
     method void setCharAt(int j, char c) {
-        if (j < length) {
+        if (j > 0 & j < length) {
             let str[j] = c;
             return;
         } else {
@@ -49,16 +53,15 @@ class String {
 
     /** Appends c to this string's end and returns this string. */
     method String appendChar(char c) {
-        var String newStr;
-        if (length = strMaxLength) { do. Sys.error(15); } // String is full.
+        if (length = strMaxLength) { do Sys.error(15); } // String is full.
         let str[length] = c;
         let length = length + 1;
-        return str;
+        return this;
     }
 
     /** Erases the last character from this string. */
     method void eraseLastChar() {
-        if (length = 0) { Sys.error(16); } // String is empty.
+        if (length = 0) { do Sys.error(16); } // String is empty.
         let length = length - 1;
         return;
     }
@@ -80,18 +83,30 @@ class String {
 
     /** Sets this string to hold a representation of the given value. */
     method void setInt(int val) {
-        var int lastDigit;
+        let length = 0;
+		if (val < 0) {
+			do appendChar(45); // -
+			let val = -val;
+			do Debug.logInt("-Val= ", val);
+		}
+		do evalInt(val);
+        return;
+    }
+	
+	method void evalInt(int val) {
+		var int lastDigit;
         var char c;
-        let lastDigit = getRemainder(val, 10);
+        let lastDigit = Math.getRemainder(val, 10);
+		do Debug.logInt("c =", lastDigit);
         let c = 48 + lastDigit; // 48 is char value of 0.
         if (~(val < 10)) {
             let val = val / 10;
-            do setInt(val);
+            do evalInt(val);
         }
-        if (~(strMaxLength - length < 1)) { do Sys.error(17); } // Insufficient string capacity.
-        do str.appendChar(c);
-        return;
-    }
+        if (~(length < strMaxLength)) { do Sys.error(17); } // Insufficient string capacity.
+        do appendChar(c);
+		return;
+	}
 
     /** Returns the new line character. */
     function char newLine() {

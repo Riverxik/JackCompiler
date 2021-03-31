@@ -36,9 +36,10 @@ class Math {
 	
 	/** Abs of x */
 	function int abs(int x) {
-		if (x = 0) { return 0; }
-		if (x > 0) { return x; }
-		else { return -x; }
+		if (x < 0) {
+			let x = -x;
+		}
+		return x;
 	}
 	
 	/** Multiply function */
@@ -60,31 +61,34 @@ class Math {
 	
 	/** Divide function */
 	function int divide(int x, int y) {
-		var int q;
-		var boolean neg;
+		var int q, tx, ty;
 		if (y = 0) { do Sys.error(3); } // Division by zero
 		if (x = 0) { return 0; }
-		let neg = resultNeg(x, y);
-		let x = abs(x);
-		let y = abs(y);
+		let tx = abs(x);
+		let ty = abs(y);
 		// divide |x| by |y| and set the result's sign
+		let q = doDivide(tx, ty);
+		// set the sign.
+		if ((x < 0) = (y < 0)) {
+			return q;
+		} else {
+			return -q;
+		}
+	}
+	
+	/** Returns the integer part of x / y
+	 *	where x >= 0 and y > 0 
+	 */
+	function int doDivide(int x, int y) {
+		var int q;
 		if ((y > x) | (y < 0)) { return 0; }
-		let q = divide(x, y + y);
+		let q = doDivide(x, y + y);
 		if ((x - (q * (y + y))) < y) { 	// ((x - 2 * q * y) < y)
 			let q = q + q;
 		} else {
 			let q = q + q + 1;
 		}
-		// set the sign.
-		if (neg) {
-			return -q;
-		} else {
-			return q;
-		}
-	}
-	
-	function boolean resultNeg(int x, int y) {
-	    return (((x < 0) & (y > 0)) | ((x > 0) & (y < 0)));
+		return q;
 	}
 	
 	/** Returns remained of division (x % y) */
