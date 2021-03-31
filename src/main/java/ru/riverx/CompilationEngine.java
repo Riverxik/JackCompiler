@@ -629,7 +629,7 @@ public class CompilationEngine {
             advance();
         } else {
             Token tmp = new Token(value, type);
-            throw new RuntimeException("Unexpected token: " + currentToken.toString() + ", expected: " + tmp.toString());
+            throw new RuntimeException("["+ className +"]"+"Unexpected token: " + currentToken.toString() + ", expected: " + tmp.toString());
         }
     }
 
@@ -651,7 +651,7 @@ public class CompilationEngine {
             }
         }
         if (!isFound && isRequired) {
-            throw new RuntimeException("Unexpected token: " + currentToken.toString() + ", expected: " + expected.toString());
+            throw new RuntimeException("["+ className +"]"+"Unexpected token: " + currentToken.toString() + ", expected: " + expected.toString());
         }
         return isFound;
     }
