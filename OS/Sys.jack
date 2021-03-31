@@ -16,6 +16,8 @@ class Sys {
 
     /** Halts the program execution. */
     function void halt() {
+        while (true) {}
+        return;
         // Maybe infinity loop (not elegant).
     }
 
