@@ -87,7 +87,6 @@ class String {
 		if (val < 0) {
 			do appendChar(45); // -
 			let val = -val;
-			do Debug.logInt("-Val= ", val);
 		}
 		do evalInt(val);
         return;
@@ -97,7 +96,6 @@ class String {
 		var int lastDigit;
         var char c;
         let lastDigit = Math.getRemainder(val, 10);
-		do Debug.logInt("c =", lastDigit);
         let c = 48 + lastDigit; // 48 is char value of 0.
         if (~(val < 10)) {
             let val = val / 10;

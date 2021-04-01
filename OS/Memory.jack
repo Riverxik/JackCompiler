@@ -5,13 +5,13 @@
 class Memory {
 	static Array ram;
 	static Array heap;
-	field int free;
+	static int deAllocValue;
 	
 	function void init() {
 		let ram = 0; 		// Initialize ram hack.
-		let free = 2048;	// heapBase
-		let heap = 2048;
-		let heap[0] = 0;	// next
+		let heap = 2048; // heapBase
+		let deAllocValue = -31416;
+		let heap[0] = deAllocValue;	// next
 		let heap[1] = 14335;// length
 		return;
 	}
@@ -30,42 +30,83 @@ class Memory {
 	/** Finds and allocates from the heap a memory block of the
 		specified size and returns a reference to it's base address */
 	function Array alloc(int size) {
-		var int block, possibleSize;
+		var int freeSegment;
 		if (~(size > 0)) { do Sys.error(5); } // Allocated memory size must be positive.
-		if (~(size < possibleSize)) {
-			// size = heap[address-1]
-			// next = heap[address-2]
-		} else {
-		    do Sys.error(6); // Heap overflow.
-		}
-		let block = free;
-		let free = free + size;
-		return block;
+		let freeSegment = firstFit(size + 2);
+		if (freeSegment = 0) { do Sys.error(6); }  // Heap overflow.
+		return freeSegment;
 	}
 	
-	// There is a TODO
+	/** Finds the first block fit for allocating memory */
 	function int firstFit(int size) {
-		var int freeList, block, listSize, possibleSize;
-		let freeList = heap;
-		while (~(freeList = 0)) {
-			let listSize = peek(freeList+1);
-			if (listSize = size) or (listSize > size) {
-				let block = freeList + 2;
-				do poke(freeList + 1, size);
+		var int freeListPtr, block, lastPtr;
+		var int listAvailableSize, possibleSize;
+		let freeListPtr = heap;
+		let lastPtr = heap;
+		while (~(freeListPtr = deAllocValue)) {
+			let listAvailableSize = ram[freeListPtr+1];
+			if (~(listAvailableSize < size)) {
+			    // Calculate new block address.
+				let block = freeListPtr + 2 + listAvailableSize - size;
+				if (~(listAvailableSize = size)) { // if size doesn't fit.
+				    // Separate block into two.
+                    let ram[freeListPtr+1] = listAvailableSize - size;
+                    let ram[block-1] = size;
+                    let ram[block-2] = deAllocValue;
+				} else { // if size fits.
+				    // remove block from list
+				    let ram[lastPtr] = ram[freeListPtr];
+				}
 				return block;
 			} else {
-				freeList = peek(freeList);
+			    // if size of block not enough
+			    let lastPtr = freeListPtr; // remember last ptr
+				let freeListPtr = ram[freeListPtr]; // go to the next block
 			}
 		}
+		return 0; // We can't find free block.
+	}
+
+    /** Finds the minimal fits block for allocating memory */
+	function int bestFit(int size) {
+	    return 0;
 	}
 	
 	/** De-allocates the given object and frees it's space */
 	function void deAlloc(Array o) {
 		// Append o to the freeList
-	}
-	
-	/**  */
-	function void deFrag() {
-	
+		var int blockBase, blockSize, freeListPtr, freeSize, lastPtr, lastSize;
+		let blockBase = o - 2;
+		let blockSize = ram[blockBase+1];
+		let freeListPtr = heap;
+		let lastPtr = heap;
+		// While address is less then blockBase or we not found end of list.
+		while ((freeListPtr < blockBase) & (~(freeListPtr = deAllocValue))) {
+		    let lastPtr = freeListPtr;
+		    let freeListPtr = ram[freeListPtr];
+		}
+		if (freeListPtr > blockBase) {
+		    // If block are contiguous - merge
+		    let lastSize = ram[lastPtr+1];
+		    let freeSize = ram[freeListPtr+1];
+		    // Try merge block with next segment.
+            if ((blockBase + blockSize) = freeListPtr) {
+                let ram[blockBase+1] = ram[blockBase+1] + ram[freeListPtr+1] + 2;
+                let ram[blockBase] = ram[freeListPtr];
+            }
+		    // Try merge block with previous segment.
+		    if (lastPtr + lastSize = blockBase) {
+		        let ram[lastPtr+1] = lastSize + ram[blockBase+1]; // Change the size of freeBlock.
+            } else {
+                // Insert a fragment block between two
+                let ram[lastPtr] = blockBase;
+                let ram[blockBase] = freeListPtr;
+            }
+		} else {
+		    // Insert in the end of list
+		    let ram[lastPtr] = blockBase;
+		    let ram[blockBase] = deAllocValue;
+		}
+		return;
 	}
 }
