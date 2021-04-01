@@ -29,7 +29,7 @@ public class JackAnalyzer {
         String file = readFile(filename);
         JackTokenizer tokenizer = new JackTokenizer(file);
         CompilationEngine engine = new CompilationEngine(tokenizer);
-        writeTokensToFile(filename, ".xml", engine.getTokensXml());
+        //writeTokensToFile(filename, ".xml", engine.getTokensXml());
         writeTokensToFile(filename, ".vm", engine.getGeneratedVMCode());
     }
 
